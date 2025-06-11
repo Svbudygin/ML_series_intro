@@ -1,0 +1,4 @@
+data/interim
+data/processed
+data/raw
+venv
