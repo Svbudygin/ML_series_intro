@@ -2,6 +2,7 @@
 
 Полный, воспроизводимый пайплайн, который на вход получает серии в формате MP4, а на выходе — JSON‑файл с временем начала и конца короткой заставки (интро).
 
+На данный момент точность попадания секунду в секунду составляет от 22 до 30% (Mean IoU over 109 episodes: 0.225; Global IoU (all intervals): 0.228), если обучить модель на большей выборке, то точность увеличится в разы
 
 ---
 ## 📂 Куда положить данные
@@ -52,6 +53,7 @@ python -m venv venv && source venv/bin/activate
 pip install --upgrade pip
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install open-clip-torch librosa tqdm pandas pyarrow pillow lightgbm
+pip install -r requirements.txt
 ```
 
 ---
@@ -149,7 +151,7 @@ python src/predict.py \
 python src/postprocess.py \
   --pred data/processed/windows_pred.parquet \
   --out  results/intro_segments.json \
-  --thr  0.6
+  --thr  0.9
 ```
 Алгоритм группирует соседние окна со score ≥ 0.6 и отрезает слишком короткие/длинные.
 

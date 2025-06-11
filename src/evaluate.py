@@ -5,31 +5,45 @@ import pandas as pd
 import numpy as np
 
 def compute_iou(gt_intervals, pred_intervals):
-    # Combine GT and Pred to union intervals
-    # Compute intersection and union lengths
+    """
+    Compute Intersection over Union (IoU) for two sets of intervals.
+    Returns (iou, intersection_length, union_length).
+    Supports intervals as [start,end] or {'start':..., 'end':...}.
+    """
     def merge_intervals(intervals):
         if not intervals:
             return []
-        iv = sorted(intervals, key=lambda x: x[0])
-        merged = [list(iv[0])]
-        for s, e in iv[1:]:
+        # Normalize to list of [s,e]
+        norm = []
+        for iv in intervals:
+            if isinstance(iv, dict):
+                s, e = iv['start'], iv['end']
+            else:
+                s, e = iv[0], iv[1]
+            norm.append([s, e])
+        norm.sort(key=lambda x: x[0])
+        merged = [norm[0]]
+        for s, e in norm[1:]:
             if s <= merged[-1][1]:
                 merged[-1][1] = max(merged[-1][1], e)
             else:
                 merged.append([s, e])
         return merged
+
     gt = merge_intervals(gt_intervals)
     pr = merge_intervals(pred_intervals)
-    # compute intersection length
+
+    # Compute intersection length
     inter = 0.0
     for gs, ge in gt:
         for ps, pe in pr:
             inter += max(0.0, min(ge, pe) - max(gs, ps))
-    # compute union length = sum(len(gt)) + sum(len(pr)) - inter
+    # Compute union = sum(gt)+sum(pr)-inter
     gt_len = sum(e - s for s, e in gt)
     pr_len = sum(e - s for s, e in pr)
     union = gt_len + pr_len - inter
-    return inter / union if union > 0 else 0.0
+    iou = inter / union if union > 0 else 0.0
+    return iou, inter, union
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate intro detection using IoU')
@@ -37,37 +51,45 @@ if __name__ == '__main__':
                         help='cleaned_labels.csv with ground truth intervals')
     parser.add_argument('--predictions', type=Path, required=True,
                         help='intro_segments.json with predicted intervals')
+    parser.add_argument('--thr', type=float, default=0.0,
+                        help='Threshold: count episodes with IoU >= thr')
     args = parser.parse_args()
 
-    # Load GT
+    # Load ground truth and derive episode_id
     df_gt = pd.read_csv(args.labels)
-    gt_dict = {}
-    for _, row in df_gt.iterrows():
-        ep = row['url']
-        # extract episode id suffix
-        epi = Path(ep).name if '/' in ep else ep
-        # use entire URL string; for compatibility assume 'episode_id' field in JSON matches this
-        if epi not in gt_dict:
-            gt_dict[epi] = []
-        gt_dict[epi].append([row['start'], row['end']])
+    df_gt['episode_id'] = df_gt['url'].apply(lambda u: Path(u).stem)
+    gt_dict = df_gt.groupby('episode_id')[['start', 'end']].apply(
+        lambda grp: grp.to_records(index=False).tolist()
+    ).to_dict()
 
     # Load predictions
-    preds = json.loads(args.predictions.read_text())
+    preds = json.loads(Path(args.predictions).read_text())
     pred_dict = {}
     for entry in preds:
-        epi = entry['episode_id']
-        pred_dict.setdefault(epi, []).append([entry['start'], entry['end']])
+        pred_dict.setdefault(entry['episode_id'], []).append([entry['start'], entry['end']])
 
-    # Compute IoU per episode
+    # Evaluate per episode
+    total_inter, total_union = 0.0, 0.0
     ious = []
+    count_thr = 0
+    print("Episode IoUs:")
     for epi, gt_ints in gt_dict.items():
         pr_ints = pred_dict.get(epi, [])
-        iou = compute_iou(gt_ints, pr_ints)
-        print(f'Episode {epi}: IoU = {iou:.3f}')
+        iou, inter, union = compute_iou(gt_ints, pr_ints)
+        print(f"  {epi}: IoU={iou:.3f} (∩={inter:.2f}, ∪={union:.2f})")
         ious.append(iou)
+        total_inter += inter
+        total_union += union
+        if iou >= args.thr:
+            count_thr += 1
 
-    if ious:
-        mean_iou = np.mean(ious)
-        print(f'\nMean IoU over {len(ious)} episodes: {mean_iou:.3f}')
+    if not ious:
+        print("No episodes to evaluate.")
     else:
-        print('No matching episodes for evaluation.')
+        mean_iou = np.mean(ious)
+        global_iou = total_inter / total_union if total_union > 0 else 0.0
+        print(f"\nMean IoU over {len(ious)} episodes: {mean_iou:.3f}")
+        print(f"Global IoU (all intervals): {global_iou:.3f}")
+        if args.thr > 0:
+            pct = count_thr / len(ious) * 100
+            print(f"Episodes with IoU ≥ {args.thr:.2f}: {count_thr}/{len(ious)} ({pct:.1f}%)")
