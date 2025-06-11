@@ -1,4 +1,4 @@
-data/interim
+episode*
 data/processed
 data/raw/episodes
 venv

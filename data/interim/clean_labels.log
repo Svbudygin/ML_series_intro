@@ -1,0 +1,8 @@
+2025-06-11 12:41:20,998 - INFO - Loaded 80 train + 45 test → 125 total rows
+2025-06-11 12:41:21,000 - INFO - Dropped 0 rows with missing values
+2025-06-11 12:41:21,002 - INFO - Swapped start/end for 29 rows
+2025-06-11 12:41:21,002 - INFO - Removed 0 zero-length intervals
+2025-06-11 12:41:21,004 - INFO - Removed 0 duplicate intervals per URL
+2025-06-11 12:41:21,004 - INFO - Moved 1 outliers (length > 139.6s) to suspects.csv
+2025-06-11 12:41:21,028 - INFO - Saved cleaned labels to data/interim/cleaned_labels.csv, suspects to data/interim/suspects.csv
+2025-06-11 12:41:21,028 - INFO - Report written to data/interim/clean_report.md
