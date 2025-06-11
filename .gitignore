@@ -1,4 +1,4 @@
 data/interim
 data/processed
-data/raw
+data/raw/episodes
 venv

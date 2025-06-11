@@ -7,6 +7,9 @@ from pathlib import Path
 def predict(model_path: Path, windows_path: Path, out_path: Path):
     booster = lgb.Booster(model_file=str(model_path))
     df = pd.read_parquet(windows_path)
+    if df.empty:
+        print(f"[predict] {windows_path} is empty – nothing to predict.")
+        return
     X = df.drop(columns=['episode_id', 'is_intro'], errors='ignore')
     df['intro_score'] = booster.predict(X, num_iteration=booster.best_iteration)
     out_path.parent.mkdir(parents=True, exist_ok=True)

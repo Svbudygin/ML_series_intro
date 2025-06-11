@@ -33,11 +33,12 @@ def train_lgbm(train_path: Path, model_out: Path, imp_out: Path,
         'verbose': -1
     }
 
-    booster = lgb.train(params,
-                        train_set,
-                        num_boost_round=200,
-                        valid_sets=[val_set],
-                        early_stopping_rounds=25)
+    booster = lgb.train(
+    params,
+    train_set,
+    num_boost_round=200,
+    valid_sets=[val_set],
+)
 
     # Evaluate
     y_pred = booster.predict(X_val)
